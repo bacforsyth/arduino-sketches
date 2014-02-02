@@ -123,7 +123,8 @@ void printTemperature(DeviceAddress deviceAddress)
 
 void loop(void)
 {   
-  delay(1000);
+  // Wait a minute between samples. This used to be once per second when I was using this to measure the lake temperature and something on the order of one second (maybe 5) would still be good for that appliction
+  delay(60000);
   Serial.print("Getting temperatures...\n\r");
   sensors.requestTemperatures();
   
