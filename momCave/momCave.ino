@@ -12,6 +12,9 @@
 #include <avr/sleep.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include "Wire.h"
+#include <LibTemperature2.h>
+
 
 #define DEBUG   0   			// set to 1 to trace activity via serial console
 
@@ -21,7 +24,6 @@
 
 #define ONEWIRE_PIN 	4   	// on arduino digital pin 4 = jeenode port 1 DIO line
 #define BATT_SENSE_PORT 2		// sense battery voltage on this port
-#define TMP421_PORT     3       // port for TMP421 temp sensor
 
 #define PREPTEMP_DELAY  8    	// how long to wait for DS18B20 sensor to stabilise, in tenths of seconds
 #define MEASURE_INTERVAL  592 	// how long between measurements, in tenths of seconds
@@ -40,6 +42,10 @@ DallasTemperature sensors(&ds);
 // define JeeLib Port for the battery reading
 Port battPort (BATT_SENSE_PORT);
 
+// TMP421 sensor attached to I2C pins directly
+LibTemperature2 tmp421 = LibTemperature2(0x2A);
+
+
 // The JeeLib scheduler makes it easy to perform various tasks at various times:
 enum { PREPTEMP, MEASUREALL, TASK_END };
 static word schedbuf[TASK_END];
@@ -50,8 +56,8 @@ struct {
     uint32_t packetseq;   	// packet serial number 32 bits 1..4294967295
     int tempDS1820B;  		// temperature * 16 as 2 bytes
     int tempTMP421;             // temperature * 16 as 2 bytes 
-    byte battVolts;  		// battery voltage V * 100 as 1 byte - assumes AA Power Board 
-							// i.e. V is nominally 1.50 and always less than 2.55 so one byte is enough
+    byte battVolts;  		// battery voltage in 100ths of a volt. max V = 3.33. Designed for use with AA board
+    // Could use bandgap voltage as described here for other setups http://jeelabs.org/2012/05/04/measuring-vcc-via-the-bandgap/
 } payload;
 
 // because we're using the watchdog timer for low-power waiting
@@ -97,6 +103,7 @@ static byte readBatt() {
 static void doMeasure() {
     
   payload.tempDS1820B = readTemp();
+  payload.tempTMP421 = tmp421.GetTemperature() * 16;
   payload.battVolts = readBatt();
   sendPayload();
 
