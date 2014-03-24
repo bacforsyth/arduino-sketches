@@ -16,7 +16,7 @@
 #include <LibTemperature2.h>
 
 
-#define DEBUG   0   			// set to 1 to trace activity via serial console
+#define DEBUG   1   			// set to 1 to trace activity via serial console
 
 #define SET_NODE   		2  		// wireless node ID 
 #define SET_GROUP  		212   	// wireless net group 
@@ -54,8 +54,8 @@ Scheduler scheduler (schedbuf, TASK_END);
 // This defines the structure of the packets which get sent out by wireless:
 struct {
     uint32_t packetseq;   	// packet serial number 32 bits 1..4294967295
-    int tempDS1820B;  		// temperature * 16 as 2 bytes
-    int tempTMP421;             // temperature * 16 as 2 bytes 
+    int tempDS1820B;  		// temperature * 10 as 2 bytes
+    int tempTMP421;             // temperature * 10 as 2 bytes 
     byte battVolts;  		// battery voltage in 100ths of a volt. max V = 3.33. Designed for use with AA board
     // Could use bandgap voltage as described here for other setups http://jeelabs.org/2012/05/04/measuring-vcc-via-the-bandgap/
 } payload;
@@ -86,10 +86,11 @@ static void prepTemp() {
 
 static int readTemp() {
     // read the temperature back from the DS18B20 that we kicked off a little while ago
-    // we are using 12 bit resolution, which means the sensor returns temp in 1/16ths but the DallasTemperature library has already converted that for us to actual degrees C. This code had assumed it was still in 16ths, keep it that way for now.
-    return (int)sensors.getTempC(DS18B20_ADDR)*16;
+    // we are using 12 bit resolution, which means the sensor returns temp in 1/16ths but the DallasTemperature library has already converted that for us to actual degrees C. 
+    return (int)sensors.getTempC(DS18B20_ADDR)*10;
 }
 
+// TODO: what is actually being done here? why are we mapping to [0,330] and shoving that into a byte?
 static byte readBatt() {
 	byte count = 4;
 	int value;
@@ -103,7 +104,7 @@ static byte readBatt() {
 static void doMeasure() {
     
   payload.tempDS1820B = readTemp();
-  payload.tempTMP421 = tmp421.GetTemperature() * 16;
+  payload.tempTMP421 = tmp421.GetTemperature() * 10;
   payload.battVolts = readBatt();
   sendPayload();
 
@@ -134,6 +135,17 @@ void setup() {
     scheduler.timer(PREPTEMP, 0);    	// start the measurement loop going
 }
 
+void printPayload() {
+    Serial.print("seq: ");
+    Serial.println(payload.packetseq);
+    Serial.print("DS1820B: ");
+    Serial.println(payload.tempDS1820B);
+    Serial.print("TMP421: ");
+    Serial.println(payload.tempTMP421);
+    Serial.print("Battery: ");
+    Serial.println(payload.battVolts);
+}
+
 void loop() {
 
 	// call to scheduler.pollWaiting() waits in sleep mode until
@@ -156,10 +168,16 @@ void loop() {
         case MEASUREALL:
             #if DEBUG
                 Serial.println("action=measureall");
+                printPayload();
                 serialFlush();
             #endif
     
             doMeasure();
+
+            #if DEBUG
+                printPayload();
+                serialFlush();
+            #endif
 
             // schedule next measurement periodically
             scheduler.timer(PREPTEMP, MEASURE_INTERVAL);
