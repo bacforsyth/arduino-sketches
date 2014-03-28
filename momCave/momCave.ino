@@ -16,7 +16,7 @@
 #include <LibTemperature2.h>
 
 
-#define DEBUG   1   			// set to 1 to trace activity via serial console
+#define DEBUG   0   			// set to 1 to trace activity via serial console
 
 #define SET_NODE   		2  		// wireless node ID 
 #define SET_GROUP  		212   	// wireless net group 
@@ -90,14 +90,15 @@ static int readTemp() {
     return (int)sensors.getTempC(DS18B20_ADDR)*10;
 }
 
-// TODO: what is actually being done here? why are we mapping to [0,330] and shoving that into a byte?
+// Returns battery voltage as measured on analog pin of battPort. Assuming 3.3V VCC, this maps [0,3.3]V to a return value in [0,255]
 static byte readBatt() {
 	byte count = 4;
 	int value;
 	while (count-- > 0) {
 		value = battPort.anaRead();
 	}
-    return  (byte) map(value,0,1013,0,330);
+
+    return  (byte) map(value,0,1023,0,330);
 }
 
 // readout all the sensors and other values
@@ -168,7 +169,6 @@ void loop() {
         case MEASUREALL:
             #if DEBUG
                 Serial.println("action=measureall");
-                printPayload();
                 serialFlush();
             #endif
     
