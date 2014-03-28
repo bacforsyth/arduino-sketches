@@ -17,3 +17,7 @@ packet format:
             byte battVolts;  		// battery voltage in 100ths of a volt. max V = 3.33
         } payload;
 
+
+#Issues
+
+- If i2c temp sensor isn't attached then it appears we hang forever when trying to read from it
