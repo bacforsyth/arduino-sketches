@@ -6,7 +6,11 @@
 #include <JeeLib.h>
 #include <avr/sleep.h>
 
+#define BATT_SENSE_PORT 2		// sense battery voltage on this port
+
 volatile bool adcDone;
+
+Port battPort (BATT_SENSE_PORT);
 
 ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 
@@ -27,18 +31,31 @@ static byte vccRead (byte count =4) {
   return (55U * 1023U) / (ADC + 1) - 50;
 }
 
+static byte readBat() {
+	byte count = 4;
+	int value;
+	while (count-- > 0) {
+		value = battPort.anaRead();
+	}
+    return  (byte) map(value,0,1013,0,330);
+}
+
 void setup() {
   rf12_initialize(17, RF12_915MHZ, 212);
 }
 
 void loop() {  
-  byte x = vccRead();
+  byte x[2];
+  x[0] = vccRead();
+  Sleepy::loseSomeTime(1024);
+  x[1] = readBat();
+
   Sleepy::loseSomeTime(16);
 
   rf12_sleep(RF12_WAKEUP);
   while (!rf12_canSend())
     rf12_recvDone();
-  rf12_sendStart(0, &x, sizeof x);
+  rf12_sendStart(0, &x, 2);
   rf12_sendWait(2);
   rf12_sleep(RF12_SLEEP);
 
