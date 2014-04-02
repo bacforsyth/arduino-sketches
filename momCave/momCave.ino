@@ -67,12 +67,63 @@ ISR(WDT_vect) { Sleepy::watchdogEvent(); }
 static byte sendPayload () {
   ++payload.packetseq;
 
-  rf12_sleep(RF12_WAKEUP);
-  while (!rf12_canSend())
-    rf12_recvDone();
-  rf12_sendStart(0, &payload, sizeof payload);
-  rf12_sendWait(SEND_MODE);
-  rf12_sleep(RF12_SLEEP);
+  // not done until we get an ack or we have 8 unsuccessful resends
+  bool ACKd = false;
+  int resendCount = 8;
+  while (!ACKd && resendCount > 0)
+  {
+      rf12_sleep(RF12_WAKEUP);
+      while (!rf12_canSend())
+      {
+        rf12_recvDone();
+      }
+      // Ask for an ACK
+#if DEBUG
+      Serial.print("Sending, attempt ");
+      Serial.println(9-resendCount);
+      serialFlush();
+#endif
+      rf12_sendStart(RF12_HDR_ACK, &payload, sizeof payload);
+      // This sendWait was here before we started waiting for ACKs. It would prevent us putting the radio to sleep before the send finished. That shouldn't ever happen now and it was preventing us from receiving ACKs.
+      //rf12_sendWait(SEND_MODE);
+      resendCount--;
+#if DEBUG
+      Serial.println("Waiting for ACK...");
+      serialFlush();
+#endif
+      // poll for 100ms to wait for an ACK
+      MilliTimer t;
+      while (!t.poll(100)) {
+        // got an empty packet intended for us 
+        if (rf12_recvDone() && rf12_crc == 0 && rf12_len == 0) {
+#if DEBUG 
+              Serial.println("Possible ACK received");
+              serialFlush();
+#endif
+          byte myAddr = SET_NODE & RF12_HDR_MASK;
+          if (rf12_hdr == (RF12_HDR_CTL | RF12_HDR_DST | myAddr)) {
+#if DEBUG 
+              Serial.println("ACK received");
+              serialFlush();
+#endif
+              ACKd = true;
+          } else {
+#if DEBUG 
+              Serial.println("NO ACK");
+              serialFlush();
+#endif
+          }
+        }
+        // TODO: put a 1ms or 2ms delay here to avoid burning power polling for 100ms?
+      }
+      // Go back into low power radio mode
+      rf12_sleep(RF12_SLEEP);
+      if (!ACKd)
+      {
+        // Wait 1s before sending again
+        delay(1000);
+      }
+  }
 }
 
 // prepare to read out temperature sensor
