@@ -159,10 +159,6 @@ static void doMeasure() {
   payload.tempTMP421 = tmp421.GetTemperature() * 10;
   payload.battVolts = readBatt();
   sendPayload();
-
-    #if SERIAL
-        dumpPayload("doMeasure()");
-    #endif
 }
 
 static void serialFlush () {
