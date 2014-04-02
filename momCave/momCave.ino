@@ -132,7 +132,7 @@ void setup() {
     #endif
 	
     sensors.setWaitForConversion(false);  // makes it async
-    sensors.setResolution(DS18B20_ADDR, 10);
+    sensors.setResolution(DS18B20_ADDR, 12);
     scheduler.timer(PREPTEMP, 0);    	// start the measurement loop going
 }
 
