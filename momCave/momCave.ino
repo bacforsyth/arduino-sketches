@@ -138,7 +138,7 @@ static void prepTemp() {
 static int readTemp() {
     // read the temperature back from the DS18B20 that we kicked off a little while ago
     // we are using 12 bit resolution, which means the sensor returns temp in 1/16ths but the DallasTemperature library has already converted that for us to actual degrees C. 
-    return (int)sensors.getTempC(DS18B20_ADDR)*10;
+    return sensors.getTempC(DS18B20_ADDR)*10;
 }
 
 // Returns battery voltage as measured on analog pin of battPort. Assuming 3.3V VCC, this maps [0,3.3]V to a return value in [0,255]
